@@ -1,0 +1,8 @@
+データベースファイルのパス: /Users/mbp2025/scraper-batch/setten_articles.db
+データベースファイルの存在: True
+テーブル一覧: [('articles',), ('sqlite_sequence',)]
+articlesテーブルの構造: [(0, 'id', 'INTEGER', 0, None, 1), (1, 'title', 'TEXT', 0, None, 0), (2, 'url', 'TEXT', 0, None, 0), (3, 'post_date', 'TEXT', 0, None, 0), (4, 'category', 'TEXT', 0, None, 0), (5, 'content_intro', 'TEXT', 0, None, 0), (6, 'crawled_at', 'TIMESTAMP', 0, 'CURRENT_TIMESTAMP', 0)]
+記事数: 79
+ID: 1, タイトル: 就職氷河期世代の現実と未来｜収入アップとキャリア再構築の方法, URL: https://set-ten.com/career-life/lifeshift/653/
+ID: 2, タイトル: 初心者でもPythonがスラスラ！会話形式で学ぶ最強プログラミング入門書, URL: https://set-ten.com/tech-ai/programming/701/
+ID: 3, タイトル: 認知科学をハックしてスキルアップ！効率的にプログラミングを学ぶ方法, URL: https://set-ten.com/tech-ai/programming/668/

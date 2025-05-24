@@ -1,0 +1,70 @@
+{% extends 'articles/base.html' %}
+
+{% block title %}記事一覧 | {{ block.super }}{% endblock %}
+
+{% block content %}
+    <h2>記事一覧</h2>
+    
+    <div class="search-form">
+        <form method="get" action="{% url 'article_list' %}">
+            <div class="form-group">
+                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="キーワードで検索" class="search-input">
+                <select name="category" class="category-select">
+                    <option value="">カテゴリー選択</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn">検索</button>
+                {% if request.GET.q or request.GET.category %}
+                    <a href="{% url 'article_list' %}" class="btn clear">クリア</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    
+    {% if articles %}
+        <div class="articles-count">
+            {{ articles.count }} 件の記事が見つかりました
+        </div>
+        <div class="article-list">
+            {% for article in articles %}
+                <div class="article-item">
+                    <h3><a href="{% url 'article_detail' article.id %}">{{ article.title }}</a></h3>
+                    <div class="article-meta">
+                        <span class="category">{{ article.category }}</span>
+                        <span class="date">{{ article.post_date }}</span>
+                    </div>
+                    <div class="article-intro">
+                        {{ article.content_intro|truncatewords:50 }}
+                    </div>
+                    <a href="{% url 'article_detail' article.id %}" class="read-more">続きを読む</a>
+                </div>
+            {% endfor %}
+        </div>
+        
+        {% if articles.has_other_pages %}
+            <div class="pagination">
+                {% if articles.has_previous %}
+                    <a href="?page={{ articles.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">&laquo; 前へ</a>
+                {% endif %}
+                
+                {% for num in articles.paginator.page_range %}
+                    {% if articles.number == num %}
+                        <span class="current">{{ num }}</span>
+                    {% else %}
+                        <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">{{ num }}</a>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if articles.has_next %}
+                    <a href="?page={{ articles.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">次へ &raquo;</a>
+                {% endif %}
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="no-articles">
+            <p>検索条件に一致する記事が見つかりませんでした。</p>
+        </div>
+    {% endif %}
+{% endblock %}

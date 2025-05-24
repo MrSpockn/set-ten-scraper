@@ -1,0 +1,212 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+set-ten.comの記事データベースを検索するスクリプト
+"""
+
+import sqlite3
+import argparse
+import os
+import json
+from datetime import datetime
+from tabulate import tabulate
+
+DB_FILE = "setten_articles.db"
+
+def connect_to_db():
+    """データベースに接続"""
+    if not os.path.exists(DB_FILE):
+        print(f"エラー: データベースファイル '{DB_FILE}' が見つかりません。")
+        return None
+        
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row  # 辞書形式で結果を取得
+    return conn
+
+def get_all_articles(limit=10):
+    """すべての記事を最新順に取得"""
+    conn = connect_to_db()
+    if not conn:
+        return []
+        
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+        SELECT id, title, url, post_date, category, substr(content_intro, 1, 50) as intro, crawled_at 
+        FROM articles 
+        ORDER BY crawled_at DESC
+        LIMIT ?
+        """, (limit,))
+        
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(row))
+        
+        conn.close()
+        return results
+    except sqlite3.Error as e:
+        print(f"クエリ実行中にエラーが発生しました: {str(e)}")
+        conn.close()
+        return []
+
+def search_articles(search_type, keyword, limit=20):
+    """記事を検索"""
+    conn = connect_to_db()
+    if not conn:
+        return []
+        
+    cursor = conn.cursor()
+    
+    query = """
+    SELECT id, title, url, post_date, category, substr(content_intro, 1, 50) as intro, crawled_at 
+    FROM articles 
+    WHERE {field} LIKE ?
+    ORDER BY crawled_at DESC
+    LIMIT ?
+    """
+    
+    if search_type == 'title':
+        field = 'title'
+    elif search_type == 'category':
+        field = 'category'
+    elif search_type == 'date':
+        field = 'post_date' if column_exists(conn, 'articles', 'post_date') else 'date'
+    elif search_type == 'content':
+        field = 'content_intro'
+    else:
+        print(f"エラー: 無効な検索タイプ '{search_type}'")
+        return []
+    
+    cursor.execute(query.format(field=field), (f'%{keyword}%', limit))
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+def print_results(results, format_type='table'):
+    """検索結果を表示"""
+    if not results:
+        print("該当する記事がありません。")
+        return
+        
+    if format_type == 'json':
+        # JSON形式で出力
+        for i, row in enumerate(results):
+            # datetimeオブジェクトをシリアライズ可能な文字列に変換
+            if 'crawled_at' in row and isinstance(row['crawled_at'], datetime):
+                row['crawled_at'] = row['crawled_at'].isoformat()
+        print(json.dumps(results, ensure_ascii=False, indent=2))
+    else:
+        # テーブル形式で出力
+        table_data = []
+        for row in results:
+            table_data.append([
+                row['id'], 
+                row['title'][:30] + '...' if len(row['title']) > 30 else row['title'], 
+                row['post_date'], 
+                row['category'][:20] + '...' if row['category'] and len(row['category']) > 20 else row['category'],
+                row['intro'] + '...' if row['intro'] else ''
+            ])
+        
+        print(tabulate(
+            table_data, 
+            headers=['ID', 'タイトル', '投稿日', 'カテゴリ', '内容'], 
+            tablefmt='grid'
+        ))
+
+def get_stats():
+    """データベースの統計情報を取得"""
+    conn = connect_to_db()
+    if not conn:
+        return {}
+        
+    cursor = conn.cursor()
+    stats = {}
+    
+    # 記事の総数
+    cursor.execute("SELECT COUNT(*) as count FROM articles")
+    stats['total_articles'] = cursor.fetchone()['count']
+    
+    # カテゴリごとの記事数
+    cursor.execute("""
+    SELECT category, COUNT(*) as count 
+    FROM articles 
+    WHERE category != '' 
+    GROUP BY category 
+    ORDER BY count DESC
+    """)
+    stats['categories'] = [dict(row) for row in cursor.fetchall()]
+    
+    # 月別の記事数
+    cursor.execute("""
+    SELECT substr(post_date, 1, 7) as month, COUNT(*) as count 
+    FROM articles 
+    WHERE post_date != '' 
+    GROUP BY month 
+    ORDER BY month DESC
+    """)
+    stats['monthly'] = [dict(row) for row in cursor.fetchall()]
+    
+    conn.close()
+    return stats
+
+def print_stats(stats):
+    """統計情報を表示"""
+    if not stats:
+        print("統計情報を取得できませんでした。")
+        return
+        
+    print(f"\n== set-ten.com 記事データベース統計 ==")
+    print(f"総記事数: {stats['total_articles']}")
+    
+    if stats['categories']:
+        print("\n== カテゴリ別記事数 ==")
+        cat_data = [[cat['category'], cat['count']] for cat in stats['categories'][:10]]
+        print(tabulate(cat_data, headers=['カテゴリ', '記事数'], tablefmt='simple'))
+    
+    if stats['monthly']:
+        print("\n== 月別記事数 ==")
+        month_data = [[month['month'], month['count']] for month in stats['monthly'][:10]]
+        print(tabulate(month_data, headers=['年月', '記事数'], tablefmt='simple'))
+
+def main():
+    parser = argparse.ArgumentParser(description='set-ten.com記事データベースを検索')
+    
+    # サブコマンドのパーサーを作成
+    subparsers = parser.add_subparsers(dest='command', help='コマンド')
+    
+    # listコマンド
+    list_parser = subparsers.add_parser('list', help='記事一覧を表示')
+    list_parser.add_argument('-n', '--limit', type=int, default=10, help='表示する記事数（デフォルト: 10）')
+    list_parser.add_argument('-f', '--format', choices=['table', 'json'], default='table', help='出力形式（デフォルト: table）')
+    
+    # searchコマンド
+    search_parser = subparsers.add_parser('search', help='記事を検索')
+    search_parser.add_argument('type', choices=['title', 'category', 'date', 'content'], help='検索タイプ')
+    search_parser.add_argument('keyword', help='検索キーワード')
+    search_parser.add_argument('-n', '--limit', type=int, default=20, help='表示する記事数（デフォルト: 20）')
+    search_parser.add_argument('-f', '--format', choices=['table', 'json'], default='table', help='出力形式（デフォルト: table）')
+    
+    # statsコマンド
+    subparsers.add_parser('stats', help='データベース統計を表示')
+    
+    args = parser.parse_args()
+    
+    # コマンドが指定されていない場合はヘルプを表示
+    if not args.command:
+        parser.print_help()
+        return
+    
+    # コマンドに応じた処理を実行
+    if args.command == 'list':
+        results = get_all_articles(args.limit)
+        print_results(results, args.format)
+    elif args.command == 'search':
+        results = search_articles(args.type, args.keyword, args.limit)
+        print_results(results, args.format)
+    elif args.command == 'stats':
+        stats = get_stats()
+        print_stats(stats)
+
+if __name__ == "__main__":
+    main()
