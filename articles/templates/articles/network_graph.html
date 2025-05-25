@@ -1,0 +1,301 @@
+{% extends 'articles/base.html' %}
+{% load static %}
+
+{% block title %}記事リンクネットワーク | {{ block.super }}{% endblock %}
+
+{% block extra_head %}
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+<style>
+    #network-container {
+        width: 100%;
+        height: 600px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+    }
+    .network-controls {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .control-group {
+        margin-bottom: 15px;
+    }
+    .control-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+    select {
+        width: 200px;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    .legend {
+        margin-top: 20px;
+        background: white;
+        padding: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .legend-item {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 20px;
+    }
+    .legend-color {
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        margin-right: 8px;
+    }
+    #node-info {
+        margin-top: 20px;
+        background: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100px;
+        background: white;
+        margin-bottom: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>記事リンクネットワーク</h2>
+<p>データベース内の {{ article_count }} 件の記事間の参照関係をネットワークグラフで表示しています。</p>
+
+<div id="loading" class="loading">
+    <p>ネットワークデータを読み込んでいます...</p>
+</div>
+
+<div class="network-controls">
+    <div class="control-group">
+        <label for="category-filter">カテゴリーでフィルター:</label>
+        <select id="category-filter" class="form-control">
+            <option value="">すべてのカテゴリー</option>
+            {% for category in categories %}
+                <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div class="control-group">
+        <label for="layout-type">レイアウトタイプ:</label>
+        <select id="layout-type" class="form-control">
+            <option value="force">フォースレイアウト</option>
+            <option value="hierarchical">階層レイアウト</option>
+        </select>
+    </div>
+</div>
+
+<div id="network-container"></div>
+
+<div class="legend">
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #3498db;"></div>
+        <span>通常の記事</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #e74c3c;"></div>
+        <span>多く参照されている記事</span>
+    </div>
+    <div class="legend-item">
+        <div class="legend-color" style="background-color: #2ecc71;"></div>
+        <span>多くの記事を参照している記事</span>
+    </div>
+</div>
+
+<div id="node-info" style="display: none;">
+    <h3 id="node-title"></h3>
+    <p id="node-category"></p>
+    <p id="node-links"></p>
+    <a id="node-url" href="#" class="btn" target="_blank">記事を表示</a>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.getElementById('network-container');
+    const loading = document.getElementById('loading');
+    let network = null;
+
+    function createNetwork(data) {
+        // ノードとエッジのデータセットを作成
+        const nodes = new vis.DataSet(data.nodes.map(node => ({
+            id: node.id,
+            label: node.label,
+            title: node.label, // ホバー時に表示されるラベル
+            category: node.category,
+            url: node.url,
+            color: '#3498db', // デフォルトカラー
+            font: { color: '#333' }
+        })));
+
+        const edges = new vis.DataSet(data.edges);
+
+        // 接続数に基づいてノードの色とサイズを設定
+        const connectionCounts = {};
+        const outgoingCounts = {};
+        edges.forEach(edge => {
+            connectionCounts[edge.to] = (connectionCounts[edge.to] || 0) + 1;
+            outgoingCounts[edge.from] = (outgoingCounts[edge.from] || 0) + 1;
+        });
+
+        nodes.forEach(node => {
+            const incomingCount = connectionCounts[node.id] || 0;
+            const outgoingCount = outgoingCounts[node.id] || 0;
+            
+            if (incomingCount > 2) {
+                node.color = '#e74c3c';
+                node.value = incomingCount + 2;
+            } else if (outgoingCount > 2) {
+                node.color = '#2ecc71';
+                node.value = outgoingCount + 1;
+            }
+            nodes.update(node);
+        });
+
+        // ネットワークの設定
+        const options = {
+            nodes: {
+                shape: 'dot',
+                scaling: {
+                    min: 10,
+                    max: 30,
+                    label: { enabled: true, min: 14, max: 30 }
+                },
+                font: {
+                    size: 14,
+                    face: 'arial'
+                }
+            },
+            edges: {
+                width: 1,
+                color: { color: '#999', highlight: '#3498db' },
+                arrows: { to: { enabled: true, scaleFactor: 0.5 } }
+            },
+            physics: {
+                enabled: true,
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -26,
+                    centralGravity: 0.005,
+                    springLength: 230,
+                    springConstant: 0.18,
+                    damping: 0.4
+                },
+                stabilization: { iterations: 150 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200,
+                hideEdgesOnDrag: true,
+                navigationButtons: true,
+                keyboard: true
+            }
+        };
+
+        // ネットワークの作成
+        network = new vis.Network(container, { nodes, edges }, options);
+
+        // クリックイベントの処理
+        network.on('click', function(params) {
+            if (params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                const node = nodes.get(nodeId);
+                showNodeInfo(node, connectionCounts[nodeId] || 0, outgoingCounts[nodeId] || 0);
+            }
+        });
+
+        // カテゴリーフィルターの処理
+        document.getElementById('category-filter').addEventListener('change', function(e) {
+            const category = e.target.value;
+            loadNetworkData(category);
+        });
+
+        // レイアウトタイプの切り替え
+        document.getElementById('layout-type').addEventListener('change', function(e) {
+            const layoutType = e.target.value;
+            if (layoutType === 'hierarchical') {
+                network.setOptions({
+                    physics: { enabled: false },
+                    layout: {
+                        hierarchical: {
+                            enabled: true,
+                            direction: 'UD',
+                            sortMethod: 'directed',
+                            nodeSpacing: 150,
+                            levelSeparation: 150
+                        }
+                    }
+                });
+            } else {
+                network.setOptions({
+                    physics: {
+                        enabled: true,
+                        solver: 'forceAtlas2Based'
+                    },
+                    layout: { hierarchical: { enabled: false } }
+                });
+            }
+        });
+    }
+
+    function showNodeInfo(node, incomingCount, outgoingCount) {
+        const nodeInfo = document.getElementById('node-info');
+        document.getElementById('node-title').textContent = node.label;
+        document.getElementById('node-category').textContent = `カテゴリー: ${node.category || '未分類'}`;
+        document.getElementById('node-links').textContent = 
+            `リンク数: 参照されている=${incomingCount}, 参照している=${outgoingCount}`;
+        
+        const nodeUrl = document.getElementById('node-url');
+        nodeUrl.href = node.url;
+        
+        nodeInfo.style.display = 'block';
+    }
+
+    function loadNetworkData(category = '') {
+        loading.style.display = 'flex';
+        container.style.display = 'none';
+        
+        const url = new URL(`${window.location.origin}/api/article-network/`);
+        if (category) {
+            url.searchParams.append('category', category);
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                loading.style.display = 'none';
+                container.style.display = 'block';
+                if (network) {
+                    network.destroy();
+                }
+                createNetwork(data);
+            })
+            .catch(error => {
+                loading.innerHTML = `<p class="error">エラーが発生しました: ${error.message}</p>`;
+                console.error('ネットワークデータの読み込みエラー:', error);
+            });
+    }
+
+    // 初期データの読み込み
+    loadNetworkData();
+});
+</script>
+{% endblock %}

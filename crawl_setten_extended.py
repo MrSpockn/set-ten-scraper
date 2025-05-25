@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-set-ten.comのウェブスクレイピングスクリプト
-記事タイトル、URL、投稿日、カテゴリ、本文冒頭を収集してCSVとSQLiteデータベースに保存します
+スクレイピング機能拡張版
+set-ten.comのウェブスクレイピングスクリプト（拡張版）
+記事情報を詳細に収集してCSVとSQLiteデータベースに保存します
 """
 
 import requests
@@ -16,6 +17,7 @@ import json
 import sqlite3
 from urllib.parse import urljoin, urlparse
 from datetime import datetime
+import logging
 
 # 基本設定
 BASE_URL = "https://set-ten.com/"
@@ -26,6 +28,17 @@ HEADERS = {
 }
 REQUEST_DELAY = 2  # サイトに負荷をかけないよう2秒間の間隔を設ける
 MAX_PAGES = 100  # スクレイピングする最大ページ数（無限ループ防止のため）
+
+# ロギング設定
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    handlers=[
+        logging.FileHandler("scraper.log"),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger("setten_scraper")
 
 # 収集済みURLを管理するセット
 visited_urls = set()
@@ -83,13 +96,11 @@ def clean_text(text):
 
 
 def extract_article_info(url):
-    """記事ページから情報を抽出"""
+    """記事ページから情報を抽出（拡張版）"""
     try:
         response = requests.get(url, headers=HEADERS, timeout=30)
         if response.status_code != 200:
-            print(
-                f"ページの取得に失敗しました: {url} - ステータスコード: {response.status_code}"
-            )
+            logger.warning(f"ページの取得に失敗しました: {url} - ステータスコード: {response.status_code}")
             return None
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -170,7 +181,8 @@ def extract_article_info(url):
                 break
         
         # コンテンツから書籍情報を抽出（ISBNなど）
-        content_text = soup.select_one(".entry-content").get_text() if soup.select_one(".entry-content") else ""
+        content_element = soup.select_one(".entry-content")
+        content_text = content_element.get_text() if content_element else ""
         isbn_match = re.search(r'ISBN[:\-]?\s*(\d[\d\-]{10,})', content_text)
         if isbn_match:
             book_isbn = isbn_match.group(1).replace('-', '')
@@ -193,6 +205,7 @@ def extract_article_info(url):
                 })
         
         # 頻出単語を抽出（単純なカウント方式）
+        frequent_words = {}
         if full_content:
             # 簡易的な単語分割（日本語のため形態素解析が理想だが、簡易版として）
             words = re.findall(r'[一-龠々〆〤ぁ-んァ-ヶa-zA-Z0-9]+', full_content)
@@ -210,15 +223,13 @@ def extract_article_info(url):
             # 出現頻度順にソート
             sorted_words = sorted(word_count_dict.items(), key=lambda x: x[1], reverse=True)
             # 上位20単語を取得
-            frequent_words = dict(sorted_words[:20])
-        else:
-            frequent_words = {}
+            frequent_words = dict(sorted_words[:20]) if sorted_words else {}
         
         # リンク切れをチェック（実際には全てのリンクをチェックするのは負荷が大きいため、実装は限定的）
         broken_links = []
         # 実用的には、実際のリンクチェックは外部スクリプトで定期的に行うべき
 
-        return {
+        article_info = {
             "title": title,
             "url": url,
             "date": date,
@@ -236,9 +247,11 @@ def extract_article_info(url):
             "frequent_words": json.dumps(frequent_words, ensure_ascii=False),
             "broken_links": json.dumps(broken_links, ensure_ascii=False),
         }
+        
+        return article_info
 
     except Exception as e:
-        print(f"エラー発生: {url} - {str(e)}")
+        logger.error(f"記事情報抽出中にエラー発生: {url} - {str(e)}", exc_info=True)
         return None
 
 
@@ -246,11 +259,9 @@ def extract_links(url):
     """ページからリンクを抽出する"""
     links = set()
     try:
-        response = requests.get(url, headers=HEADERS)
+        response = requests.get(url, headers=HEADERS, timeout=30)
         if response.status_code != 200:
-            print(
-                f"ページの取得に失敗しました: {url} - ステータスコード: {response.status_code}"
-            )
+            logger.warning(f"ページの取得に失敗しました: {url} - ステータスコード: {response.status_code}")
             return links
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -263,7 +274,7 @@ def extract_links(url):
             if is_valid_url(link) and link not in visited_urls:
                 links.add(link)
     except Exception as e:
-        print(f"リンク抽出でエラー発生: {url} - {str(e)}")
+        logger.error(f"リンク抽出でエラー発生: {url} - {str(e)}")
 
     return links
 
@@ -293,7 +304,7 @@ def crawl():
         if current_url in visited_urls:
             continue
 
-        print(f"処理中: {current_url}")
+        logger.info(f"処理中: {current_url}")
         visited_urls.add(current_url)
         page_count += 1
 
@@ -301,7 +312,7 @@ def crawl():
         if is_article_page(current_url):
             article_info = extract_article_info(current_url)
             if article_info:
-                print(f"記事を発見: {article_info['title']}")
+                logger.info(f"記事を発見: {article_info['title']}")
                 articles_data.append(article_info)
 
         # ページからリンクを取得し、キューに追加
@@ -311,16 +322,14 @@ def crawl():
         # サーバーに負荷をかけないよう一定時間待機
         time.sleep(REQUEST_DELAY)
 
-    print(
-        f"クロール完了。処理したページ数: {page_count}, 収集した記事数: {len(articles_data)}"
-    )
+    logger.info(f"クロール完了。処理したページ数: {page_count}, 収集した記事数: {len(articles_data)}")
 
 
 def save_to_csv():
     """収集したデータをCSVファイルに保存"""
     fieldnames = [
         "title", "url", "date", "updated_date", "category", "tags",
-        "content_intro", "headings", "book_title", "book_author", 
+        "content_intro", "headings", "book_title", "book_author",
         "book_isbn", "book_asin", "word_count", "external_links",
         "frequent_words", "broken_links"
     ]
@@ -336,9 +345,9 @@ def save_to_csv():
                 row["date"] = article.get("date", "")
                 writer.writerow(row)
 
-        print(f"データを {OUTPUT_FILE} に保存しました。")
+        logger.info(f"データを {OUTPUT_FILE} に保存しました。")
     except Exception as e:
-        print(f"CSVファイル保存中にエラーが発生しました: {str(e)}")
+        logger.error(f"CSVファイル保存中にエラーが発生しました: {str(e)}")
 
 
 def save_to_db(conn, articles):
@@ -386,18 +395,18 @@ def save_to_db(conn, articles):
                     else:
                         updated_count += 1
             except sqlite3.Error as e:
-                print(f"記事の保存中にエラー発生: {article.get('url', 'Unknown URL')} - {str(e)}")
+                logger.error(f"記事の保存中にエラー発生: {article.get('url', 'Unknown URL')} - {str(e)}")
 
         conn.commit()
-        print(f"データベースに {saved_count} 件の新しい記事を保存、{updated_count} 件の記事を更新しました。")
+        logger.info(f"データベースに {saved_count} 件の新しい記事を保存、{updated_count} 件の記事を更新しました。")
     except Exception as e:
-        print(f"データベース保存中にエラーが発生しました: {str(e)}")
+        logger.error(f"データベース保存中にエラーが発生しました: {str(e)}")
         conn.rollback()
 
 
 def main():
     start_time = time.time()
-    print(f"スクレイピングを開始します: {BASE_URL}")
+    logger.info(f"拡張スクレイピングを開始します: {BASE_URL}")
 
     # データベース初期化
     db_conn = initialize_db()
@@ -415,9 +424,9 @@ def main():
     db_conn.close()
 
     elapsed_time = time.time() - start_time
-    print(f"処理完了！経過時間: {elapsed_time:.2f}秒")
-    print(f"処理したURL数: {len(visited_urls)}")
-    print(f"収集した記事数: {len(articles_data)}")
+    logger.info(f"処理完了！経過時間: {elapsed_time:.2f}秒")
+    logger.info(f"処理したURL数: {len(visited_urls)}")
+    logger.info(f"収集した記事数: {len(articles_data)}")
 
 
 if __name__ == "__main__":
@@ -459,6 +468,6 @@ def query_db(query_type=None, keyword=None):
         conn.close()
         return results
     except sqlite3.Error as e:
-        print(f"データベース検索中にエラーが発生しました: {str(e)}")
+        logger.error(f"データベース検索中にエラーが発生しました: {str(e)}")
         conn.close()
         return []

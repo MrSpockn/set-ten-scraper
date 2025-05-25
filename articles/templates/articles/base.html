@@ -6,6 +6,7 @@
     <title>{% block title %}セッテン記事ビューア{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
@@ -15,6 +16,7 @@
                 <ul>
                     <li><a href="{% url 'home' %}">ホーム</a></li>
                     <li><a href="{% url 'article_list' %}">記事一覧</a></li>
+                    <li><a href="{% url 'network_graph' %}">ネットワークグラフ</a></li>
                 </ul>
             </nav>
         </div>

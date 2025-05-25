@@ -15,8 +15,14 @@
                         <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
                     {% endfor %}
                 </select>
+                <div class="filter-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" name="has_book" value="1" {% if request.GET.has_book == '1' %}checked{% endif %}>
+                        書籍情報あり
+                    </label>
+                </div>
                 <button type="submit" class="btn">検索</button>
-                {% if request.GET.q or request.GET.category %}
+                {% if request.GET.q or request.GET.category or request.GET.has_book %}
                     <a href="{% url 'article_list' %}" class="btn clear">クリア</a>
                 {% endif %}
             </div>
@@ -33,11 +39,26 @@
                     <h3><a href="{% url 'article_detail' article.id %}">{{ article.title }}</a></h3>
                     <div class="article-meta">
                         <span class="category">{{ article.category }}</span>
+                        {% if article.tags %}
+                        <span class="tags">タグ: {{ article.tags }}</span>
+                        {% endif %}
                         <span class="date">{{ article.post_date }}</span>
+                        {% if article.updated_date %}
+                        <span class="updated">更新日: {{ article.updated_date }}</span>
+                        {% endif %}
+                        {% if article.word_count %}
+                        <span class="word-count">{{ article.word_count }} 文字</span>
+                        {% endif %}
                     </div>
                     <div class="article-intro">
                         {{ article.content_intro|truncatewords:50 }}
                     </div>
+                    {% if article.book_title %}
+                    <div class="book-info">
+                        <span class="book-icon">📚</span> {{ article.book_title }}
+                        {% if article.book_author %} ({{ article.book_author }}){% endif %}
+                    </div>
+                    {% endif %}
                     <a href="{% url 'article_detail' article.id %}" class="read-more">続きを読む</a>
                 </div>
             {% endfor %}

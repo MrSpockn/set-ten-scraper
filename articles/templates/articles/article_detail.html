@@ -1,25 +1,254 @@
 {% extends 'articles/base.html' %}
+{% load static %}
 
 {% block title %}{{ article.title }} | {{ block.super }}{% endblock %}
 
 {% block content %}
-    <div class="article-detail">
-        <div class="article-header">
-            <h2>{{ article.title }}</h2>
-            <div class="article-meta">
-                <span class="category">{{ article.category }}</span>
-                <span class="date">{{ article.post_date }}</span>
-                <span class="crawled">取得日時: {{ article.crawled_at|date:"Y年m月d日 H:i" }}</span>
+<div class="article-detail">
+    <div class="article-header">
+        <h2>{{ article.title }}</h2>
+        <div class="article-meta">
+            {% if article.category %}
+            <div class="meta-item">
+                <span class="label">カテゴリ:</span>
+                <span class="value">{{ article.category }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.tags %}
+            <div class="meta-item">
+                <span class="label">タグ:</span>
+                <span class="value">
+                    {% for tag in article.get_tags_list %}
+                    <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+            
+            {% if article.post_date %}
+            <div class="meta-item">
+                <span class="label">投稿日:</span>
+                <span class="value">{{ article.post_date }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.updated_date %}
+            <div class="meta-item">
+                <span class="label">更新日:</span>
+                <span class="value">{{ article.updated_date }}</span>
+            </div>
+            {% endif %}
+            
+            <div class="meta-item">
+                <span class="label">取得日時:</span>
+                <span class="value">{{ article.crawled_at|date:"Y年m月d日 H:i" }}</span>
             </div>
         </div>
-        
-        <div class="article-content">
-            {{ article.content_intro|linebreaks }}
-        </div>
-        
-        <div class="article-actions">
-            <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="btn">元記事を見る</a>
-            <a href="{% url 'article_list' %}" class="btn secondary">一覧に戻る</a>
+    </div>
+
+    {% if article.content_intro %}
+    <div class="article-content section">
+        <h3>本文抜粋</h3>
+        {{ article.content_intro|linebreaks }}
+        {% if article.word_count %}
+        <div class="word-count">文字数: {{ article.word_count }} 文字</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if article.get_headings %}
+    <div class="article-structure section">
+        <h3>記事の構成</h3>
+        <ul class="headings-list">
+            {% for heading in article.get_headings %}
+            <li class="heading-level-{{ heading.level }}">{{ heading.text }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if article.book_title or article.book_author or article.book_isbn or article.book_asin %}
+    <div class="article-book-info section">
+        <h3>書籍情報</h3>
+        <div class="book-details">
+            {% if article.book_title %}
+            <div class="detail-item">
+                <span class="label">書籍名:</span>
+                <span class="value">{{ article.book_title }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.book_author %}
+            <div class="detail-item">
+                <span class="label">著者:</span>
+                <span class="value">{{ article.book_author }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.book_isbn %}
+            <div class="detail-item">
+                <span class="label">ISBN:</span>
+                <span class="value">{{ article.book_isbn }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.book_asin %}
+            <div class="detail-item">
+                <span class="label">ASIN:</span>
+                <span class="value">{{ article.book_asin }}</span>
+            </div>
+            {% endif %}
         </div>
     </div>
+    {% endif %}
+
+    {% if article.get_frequent_words %}
+    <div class="article-keywords section">
+        <h3>頻出キーワード</h3>
+        <div class="keyword-cloud">
+            {% for word, count in article.get_frequent_words.items %}
+            <span class="keyword">
+                <span class="word">{{ word }}</span>
+                <span class="count">({{ count }})</span>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if article.get_external_links %}
+    <div class="article-links section">
+        <h3>外部リンク</h3>
+        <ul class="links-list">
+            {% for link in article.get_external_links %}
+            <li>
+                <a href="{{ link.url }}" target="_blank" rel="noopener">
+                    {{ link.text|default:link.url }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if article.get_broken_links %}
+    <div class="article-broken-links section">
+        <h3>リンク切れ</h3>
+        <ul class="broken-links-list">
+            {% for link in article.get_broken_links %}
+            <li>{{ link }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% with related_articles=article.get_related_articles %}
+    {% if related_articles %}
+    <div class="related-articles section">
+        <h3>関連記事</h3>
+        <ul class="articles-list">
+            {% for related in related_articles %}
+            <li>
+                <a href="{% url 'article_detail' related.id %}">{{ related.title }}</a>
+                {% if related.category %}
+                <span class="category-badge">{{ related.category }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div class="article-actions">
+        <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="btn primary">元記事を見る</a>
+        <a href="{% url 'network_graph' %}" class="btn secondary">ネットワークグラフ</a>
+        <a href="{% url 'article_list' %}" class="btn secondary">記事一覧に戻る</a>
+    </div>
+</div>
+
+<style>
+.article-detail {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.section {
+    background: white;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.meta-item, .detail-item {
+    margin: 10px 0;
+}
+
+.label {
+    font-weight: bold;
+    margin-right: 10px;
+    color: #666;
+}
+
+.heading-level-1 { font-size: 1.2em; font-weight: bold; margin-left: 0; }
+.heading-level-2 { font-size: 1.1em; margin-left: 20px; }
+.heading-level-3 { margin-left: 40px; }
+.heading-level-4 { margin-left: 60px; }
+
+.keyword-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.keyword {
+    background: #f0f0f0;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.9em;
+}
+
+.count {
+    color: #666;
+    font-size: 0.8em;
+}
+
+.tag {
+    background: #e1f5fe;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-right: 5px;
+}
+
+.article-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.3s;
+}
+
+.btn.primary {
+    background: #2196f3;
+    color: white;
+}
+
+.btn.secondary {
+    background: #f5f5f5;
+    color: #333;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+</style>
 {% endblock %}

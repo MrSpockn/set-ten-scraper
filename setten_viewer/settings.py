@@ -43,11 +43,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "articles.apps.ArticlesConfig",  # 追加したアプリケーション
+    "corsheaders",  # CORS対応のため追加
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",  # CORS対応のため追加（必ずCommonMiddlewareの前に配置）
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -131,3 +133,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# CORS settings
+CORS_ALLOW_ALL_ORIGINS = True  # 開発環境のみ。本番環境では特定のオリジンのみ許可するべき
+CORS_ALLOW_METHODS = [
+    "GET",
+    "OPTIONS",
+]
