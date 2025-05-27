@@ -83,7 +83,7 @@ WSGI_APPLICATION = "setten_viewer.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.getenv('DATABASE_PATH', BASE_DIR / "setten_articles.db"),
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 
@@ -140,3 +140,20 @@ CORS_ALLOW_METHODS = [
     "GET",
     "OPTIONS",
 ]
+
+# ロギング設定
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'articles': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}

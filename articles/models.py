@@ -2,37 +2,60 @@ from django.db import models
 import json
 
 
+class Category(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100, verbose_name='カテゴリ名')
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, verbose_name='親カテゴリ')
+    slug = models.SlugField(unique=True, verbose_name='スラッグ')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='作成日時')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='更新日時')
+
+    class Meta:
+        verbose_name = 'カテゴリ'
+        verbose_name_plural = 'カテゴリ'
+        ordering = ['name']
+
+    def __str__(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+    def get_absolute_url(self):
+        from django.urls import reverse
+        return reverse('articles:category_detail', kwargs={'slug': self.slug})
+
+    @property
+    def full_name(self):
+        if self.parent:
+            return f"{self.parent.name} > {self.name}"
+        return self.name
+
+
 class Article(models.Model):
     id = models.AutoField(primary_key=True)
-    title = models.CharField(max_length=255, blank=True, null=True, verbose_name='タイトル')
-    url = models.URLField(unique=True, blank=True, null=True, verbose_name='URL')
-    post_date = models.CharField(max_length=50, blank=True, null=True, verbose_name='投稿日')
-    updated_date = models.CharField(max_length=50, blank=True, null=True, verbose_name='更新日')
-    category = models.CharField(max_length=255, blank=True, null=True, verbose_name='カテゴリ')
-    tags = models.TextField(blank=True, null=True, verbose_name='タグ')  # カンマ区切りで保存
-    content_intro = models.TextField(blank=True, null=True, verbose_name='本文冒頭')
-    headings = models.TextField(blank=True, null=True, verbose_name='見出し')  # JSONで保存
-    
-    # 書籍情報
-    book_title = models.CharField(max_length=255, blank=True, null=True, verbose_name='書籍名')
-    book_author = models.CharField(max_length=255, blank=True, null=True, verbose_name='著者')
-    book_isbn = models.CharField(max_length=20, blank=True, null=True, verbose_name='ISBN')
-    book_asin = models.CharField(max_length=20, blank=True, null=True, verbose_name='ASIN')
-    
-    # 付加情報
-    word_count = models.IntegerField(blank=True, null=True, verbose_name='文字数')
-    external_links = models.TextField(blank=True, null=True, verbose_name='外部リンク')  # JSONで保存
-    
-    # 加工情報
-    frequent_words = models.TextField(blank=True, null=True, verbose_name='頻出単語')  # JSONで保存
-    broken_links = models.TextField(blank=True, null=True, verbose_name='リンク切れ')  # JSONで保存
-    
+    title = models.CharField(max_length=500, null=True, verbose_name='タイトル')
+    url = models.URLField(unique=True, null=True, verbose_name='URL')
+    post_date = models.DateField(null=True, blank=True, verbose_name='投稿日')
+    updated_date = models.DateField(null=True, blank=True, verbose_name='更新日')
+    content_intro = models.TextField(blank=True, null=True, verbose_name='導入文')
+    category = models.ForeignKey(Category, null=True, blank=True, on_delete=models.SET_NULL, 
+                                verbose_name='カテゴリ', related_name='articles')
+    tags = models.CharField(max_length=500, blank=True, null=True, verbose_name='タグ')
+    headings = models.TextField(blank=True, null=True, verbose_name='見出し')
+    book_title = models.CharField(max_length=500, blank=True, null=True, verbose_name='書籍タイトル')
+    book_author = models.CharField(max_length=200, blank=True, null=True, verbose_name='著者')
+    book_isbn = models.CharField(max_length=13, blank=True, null=True, verbose_name='ISBN')
+    book_asin = models.CharField(max_length=10, blank=True, null=True, verbose_name='ASIN')
+    word_count = models.IntegerField(default=0, verbose_name='文字数')
+    internal_links = models.TextField(blank=True, null=True, verbose_name='内部リンク')
+    frequent_words = models.TextField(blank=True, null=True, verbose_name='頻出語')
+    broken_links = models.TextField(blank=True, null=True, verbose_name='リンク切れ')
     crawled_at = models.DateTimeField(auto_now_add=True, verbose_name='取得日時')
 
     class Meta:
-        managed = False  # 既存のデータベースを使用するため、マイグレーションで管理しない
-        db_table = 'articles'  # 既存のテーブル名を指定
-        ordering = ['-id']  # IDの降順で並べ替え（新しい記事が先に表示される）
+        managed = True
+        db_table = 'articles'
+        ordering = ['-post_date']
         verbose_name = '記事'
         verbose_name_plural = '記事'
 
@@ -54,17 +77,17 @@ class Article(models.Model):
         except:
             return []
             
-    def get_external_links(self):
-        """外部リンクをリストとして取得"""
-        if not self.external_links:
+    def get_internal_links(self):
+        """内部リンクをリストとして取得"""
+        if not self.internal_links:
             return []
         try:
-            return json.loads(self.external_links)
+            return json.loads(self.internal_links)
         except:
             return []
             
     def get_frequent_words(self):
-        """頻出単語を辞書として取得"""
+        """頻出語を辞書として取得"""
         if not self.frequent_words:
             return {}
         try:
@@ -83,53 +106,22 @@ class Article(models.Model):
             
     def get_related_articles(self):
         """内部リンク（同じドメイン内の記事）を取得"""
-        related = []
-        try:
-            external_links = self.get_external_links()
-            for link in external_links:
-                url = link.get('url', '')
-                if 'set-ten.com' in url:
-                    # 同じドメイン内のリンク
-                    article = Article.objects.filter(url=url).first()
-                    if article:
-                        related.append(article)
-            return related
-        except Exception as e:
-            print(f"関連記事取得エラー: {e}")
+        links = self.get_internal_links()
+        if not links:
             return []
-    
+        urls = [link['url'] for link in links]
+        return Article.objects.filter(url__in=urls)
+
     @classmethod
     def get_link_structure(cls):
         """記事間のリンク構造を解析"""
-        nodes = []
-        edges = []
         articles = cls.objects.all()
-        
-        # ノードの作成（すべての記事）
+        structure = []
         for article in articles:
-            nodes.append({
-                'id': article.id,
-                'label': article.title,
-                'category': article.category,
-                'url': f'/article/{article.id}/'
-            })
-        
-        # エッジの作成（記事間のリンク）
-        for article in articles:
-            try:
-                external_links = json.loads(article.external_links or '[]')
-                for link in external_links:
-                    url = link.get('url', '')
-                    if 'set-ten.com' in url:
-                        # リンク先の記事を検索
-                        target = cls.objects.filter(url=url).first()
-                        if target:
-                            edges.append({
-                                'from': article.id,
-                                'to': target.id,
-                                'arrows': 'to'
-                            })
-            except Exception as e:
-                print(f"リンク構造解析エラー: {e}")
-        
-        return {'nodes': nodes, 'edges': edges}
+            related = article.get_related_articles()
+            if related:
+                structure.append({
+                    'source': article.id,
+                    'target_ids': [rel.id for rel in related]
+                })
+        return structure

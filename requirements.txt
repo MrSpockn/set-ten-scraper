@@ -1,2 +1,5 @@
 Django==5.2.1
 python-dotenv==1.0.0
+pytz==2024.1
+mecab-python3==1.0.10
+unidic-lite==1.0.8

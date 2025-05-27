@@ -21,8 +21,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path("", include("articles.urls")),  # ルートURLでarticlesアプリのURLを使用
+    path('admin/', admin.site.urls),
+    path('', include('articles.urls')),  # articlesアプリのURLを含める
 ]
 
 # 開発環境でのみ静的ファイルを提供
