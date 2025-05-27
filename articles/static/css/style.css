@@ -358,6 +358,218 @@ footer {
     margin-bottom: 1rem;
 }
 
+/* 拡張機能のスタイル */
+
+/* タグのスタイル */
+.tags {
+    background-color: #e67e22;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    margin-right: 0.5rem;
+}
+
+/* 更新日のスタイル */
+.updated {
+    font-style: italic;
+    color: #7f8c8d;
+    margin-right: 0.5rem;
+}
+
+/* 文字数のスタイル */
+.word-count {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+/* 書籍情報のスタイル */
+.article-book-info {
+    background-color: #f9f7f1;
+    padding: 1.5rem;
+    border-left: 4px solid #e67e22;
+    margin: 1.5rem 0;
+    border-radius: 4px;
+}
+
+.book-details {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+
+.book-details div {
+    padding: 0.5rem 0;
+    border-bottom: 1px dotted #ddd;
+}
+
+.book-details div:last-child {
+    border-bottom: none;
+}
+
+.book-info {
+    background-color: #f9f7f1;
+    padding: 0.5rem;
+    border-radius: 3px;
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.book-icon {
+    margin-right: 0.5rem;
+}
+
+/* 記事構造のスタイル */
+.article-structure {
+    background-color: #f4f6f9;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.headings-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.heading-h2 {
+    font-weight: bold;
+    margin-top: 1rem;
+}
+
+.heading-h3 {
+    margin-left: 1.5rem;
+    position: relative;
+}
+
+.heading-h3::before {
+    content: "└";
+    position: absolute;
+    left: -1.2rem;
+    color: #7f8c8d;
+}
+
+.heading-h4 {
+    margin-left: 3rem;
+    position: relative;
+}
+
+.heading-h4::before {
+    content: "└";
+    position: absolute;
+    left: -1.2rem;
+    color: #7f8c8d;
+}
+
+/* 頻出単語のスタイル */
+.article-analysis {
+    background-color: #f0f4f8;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.word-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    padding: 1rem;
+    background-color: white;
+    border-radius: 3px;
+}
+
+.word-item {
+    display: inline-block;
+    padding: 0.3rem 0.6rem;
+    background-color: #3498db;
+    color: white;
+    border-radius: 15px;
+    font-size: 0.9rem;
+}
+
+/* 外部リンクのスタイル */
+.external-links {
+    background-color: #edf3f8;
+    padding: 1.5rem;
+    border-radius: 4px;
+    margin: 1.5rem 0;
+}
+
+.links-list {
+    list-style-type: none;
+    padding: 0;
+}
+
+.links-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px dotted #ddd;
+}
+
+.links-list li:last-child {
+    border-bottom: none;
+}
+
+/* フィルターのスタイル */
+.filter-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9rem;
+}
+
+.checkbox-label input {
+    margin-right: 0.5rem;
+}
+
+/* ネットワークグラフ */
+.network-controls {
+    background: white;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.control-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    font-weight: bold;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #2c3e50;
+    background-color: #fff;
+    border: 1px solid #dce4ec;
+    border-radius: 4px;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: #3498db;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
     .form-group {
@@ -377,5 +589,11 @@ footer {
     .article-actions .btn {
         width: 100%;
         text-align: center;
+    }
+}
+
+@media (min-width: 768px) {
+    .book-details {
+        grid-template-columns: repeat(2, 1fr);
     }
 }

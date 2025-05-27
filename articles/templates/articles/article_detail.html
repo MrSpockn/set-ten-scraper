@@ -1,25 +1,239 @@
 {% extends 'articles/base.html' %}
+{% load static %}
 
 {% block title %}{{ article.title }} | {{ block.super }}{% endblock %}
 
 {% block content %}
-    <div class="article-detail">
-        <div class="article-header">
-            <h2>{{ article.title }}</h2>
-            <div class="article-meta">
-                <span class="category">{{ article.category }}</span>
-                <span class="date">{{ article.post_date }}</span>
-                <span class="crawled">取得日時: {{ article.crawled_at|date:"Y年m月d日 H:i" }}</span>
+<div class="article-detail">
+    <div class="article-header">
+        <h2>{{ article.title }}</h2>
+        <div class="article-meta">
+            {% if article.category %}
+            <div class="meta-item">
+                <span class="label">カテゴリ:</span>
+                <span class="value">
+                    {% if article.category.parent %}
+                        <a href="{% url 'articles:article_list' %}?category={{ article.category.parent.id }}">{{ article.category.parent.name }}</a>
+                        &gt;
+                        <a href="{% url 'articles:article_list' %}?category={{ article.category.id }}">{{ article.category.name }}</a>
+                    {% else %}
+                        <a href="{% url 'articles:article_list' %}?category={{ article.category.id }}">{{ article.category.name }}</a>
+                    {% endif %}
+                </span>
             </div>
+            {% endif %}
+            
+            {% if article.tags %}
+            <div class="meta-item">
+                <span class="label">タグ:</span>
+                <span class="value">
+                    {% for tag in article.get_tags_list %}
+                    <span class="tag">{{ tag }}</span>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="meta-item">
+                <span class="label">URL:</span>
+                <span class="value"><a href="{{ article.url }}" target="_blank" rel="noopener">{{ article.url }}</a></span>
+            </div>
+            
+            {% if article.post_date %}
+            <div class="meta-item">
+                <span class="label">投稿日:</span>
+                <span class="value">{{ article.post_date|date:"Y年n月j日" }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.updated_date %}
+            <div class="meta-item">
+                <span class="label">更新日:</span>
+                <span class="value">{{ article.updated_date|date:"Y年n月j日" }}</span>
+            </div>
+            {% endif %}
+            
+            {% if article.word_count %}
+            <div class="meta-item">
+                <span class="label">文字数:</span>
+                <span class="value">{{ article.word_count }}</span>
+            </div>
+            {% endif %}
         </div>
-        
+    </div>
+
+    {% if article.content_intro %}
+    <div class="article-section">
+        <h3>概要</h3>
         <div class="article-content">
             {{ article.content_intro|linebreaks }}
         </div>
-        
-        <div class="article-actions">
-            <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer" class="btn">元記事を見る</a>
-            <a href="{% url 'article_list' %}" class="btn secondary">一覧に戻る</a>
+    </div>
+    {% endif %}
+
+    {% if article.book_title %}
+    <div class="article-section book-info">
+        <h3>書籍情報</h3>
+        <div class="book-details">
+            <div class="book-title">
+                <span class="label">タイトル:</span>
+                <span class="value">{{ article.book_title }}</span>
+            </div>
+            {% if article.book_author %}
+            <div class="book-author">
+                <span class="label">著者:</span>
+                <span class="value">{{ article.book_author }}</span>
+            </div>
+            {% endif %}
+            {% if article.book_isbn %}
+            <div class="book-isbn">
+                <span class="label">ISBN:</span>
+                <span class="value">{{ article.book_isbn }}</span>
+            </div>
+            {% endif %}
+            {% if article.book_asin %}
+            <div class="book-asin">
+                <span class="label">ASIN:</span>
+                <span class="value">{{ article.book_asin }}</span>
+            </div>
+            {% endif %}
         </div>
     </div>
+    {% endif %}
+
+    {% if article.headings %}
+    <div class="article-section">
+        <h3>記事の構成</h3>
+        <div class="article-headings">
+            {{ article.headings|linebreaks }}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if article.frequent_words %}
+    <div class="article-section">
+        <h3>頻出語</h3>
+        <div class="frequent-words">
+            {{ article.frequent_words|linebreaks }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="article-actions">
+        <a href="{% url 'articles:article_list' %}" class="btn">記事一覧に戻る</a>
+        <a href="{{ article.url }}" target="_blank" rel="noopener" class="btn">元の記事を見る</a>
+    </div>
+</div>
+
+<style>
+.article-detail {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.article-header {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.article-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    color: #333;
+}
+
+.article-meta {
+    margin: 10px 0;
+}
+
+.meta-item {
+    margin: 5px 0;
+}
+
+.label {
+    font-weight: bold;
+    color: #666;
+    margin-right: 10px;
+}
+
+.tag {
+    display: inline-block;
+    background: #e9ecef;
+    padding: 2px 8px;
+    margin: 2px;
+    border-radius: 4px;
+}
+
+.article-section {
+    margin: 30px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.article-section h3 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.2em;
+}
+
+.article-content {
+    line-height: 1.6;
+}
+
+.book-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.book-details {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.book-title, .book-author, .book-isbn, .book-asin {
+    width: 48%;
+    margin-right: 4%;
+}
+
+.book-author, .book-isbn, .book-asin {
+    margin-top: 10px;
+}
+
+.article-actions {
+    margin-top: 30px;
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 5px;
+    text-decoration: none;
+    transition: background-color 0.3s;
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+}
+
+.btn.primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn.primary:hover {
+    background: #0056b3;
+}
+
+.btn.secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.btn.secondary:hover {
+    background: #5a6268;
+}
+</style>
 {% endblock %}

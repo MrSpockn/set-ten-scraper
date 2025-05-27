@@ -6,15 +6,17 @@
     <title>{% block title %}セッテン記事ビューア{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
     <header>
         <div class="container">
-            <h1><a href="{% url 'home' %}">セッテン記事ビューア</a></h1>
+            <h1><a href="{% url 'articles:home' %}">セッテン記事ビューア</a></h1>
             <nav>
                 <ul>
-                    <li><a href="{% url 'home' %}">ホーム</a></li>
-                    <li><a href="{% url 'article_list' %}">記事一覧</a></li>
+                    <li><a href="{% url 'articles:home' %}">ホーム</a></li>
+                    <li><a href="{% url 'articles:article_list' %}">記事一覧</a></li>
+                    <li><a href="{% url 'articles:network_graph' %}">ネットワークグラフ</a></li>
                 </ul>
             </nav>
         </div>

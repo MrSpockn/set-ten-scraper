@@ -15,11 +15,15 @@
             <li>キーワードによる記事検索</li>
             <li>カテゴリー別フィルタリング</li>
             <li>日付範囲による絞り込み</li>
+            <li>カテゴリ間の関係を視覚化</li>
         </ul>
     </div>
 
     <div class="home-actions">
-        <a href="{% url 'article_list' %}" class="btn btn-large">記事一覧を見る</a>
+        <div class="button-group">
+            <a href="{% url 'articles:article_list' %}" class="btn btn-primary">記事一覧を見る</a>
+            <a href="{% url 'articles:network_graph' %}" class="btn btn-secondary">カテゴリネットワークを見る</a>
+        </div>
     </div>
 
     <div class="home-stats">

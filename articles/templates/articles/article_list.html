@@ -6,39 +6,89 @@
     <h2>記事一覧</h2>
     
     <div class="search-form">
-        <form method="get" action="{% url 'article_list' %}">
+        <form method="get" action="{% url 'articles:article_list' %}">
             <div class="form-group">
                 <input type="text" name="q" value="{{ request.GET.q }}" placeholder="キーワードで検索" class="search-input">
                 <select name="category" class="category-select">
-                    <option value="">カテゴリー選択</option>
+                    <option value="">すべてのカテゴリー</option>
                     {% for cat in categories %}
-                        <option value="{{ cat }}" {% if request.GET.category == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% if not cat.parent %}
+                            <option value="{{ cat.id }}" {% if selected_category.id == cat.id %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% for child in categories %}
+                                {% if child.parent == cat %}
+                                    <option value="{{ child.id }}" {% if selected_category.id == child.id %}selected{% endif %}>
+                                        　└ {{ child.name }}
+                                    </option>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
                     {% endfor %}
                 </select>
+                <select name="has_book" class="book-select">
+                    <option value="">書籍情報：すべて</option>
+                    <option value="1" {% if request.GET.has_book == '1' %}selected{% endif %}>書籍情報あり</option>
+                    <option value="0" {% if request.GET.has_book == '0' %}selected{% endif %}>書籍情報なし</option>
+                </select>
                 <button type="submit" class="btn">検索</button>
-                {% if request.GET.q or request.GET.category %}
-                    <a href="{% url 'article_list' %}" class="btn clear">クリア</a>
+                {% if request.GET.q or request.GET.category or request.GET.has_book %}
+                    <a href="{% url 'articles:article_list' %}" class="btn clear">クリア</a>
                 {% endif %}
             </div>
         </form>
     </div>
     
+    {% if selected_category %}
+        <div class="current-category">
+            {% if selected_category.parent %}
+                <h3>{{ selected_category.parent.name }} > {{ selected_category.name }}</h3>
+            {% else %}
+                <h3>{{ selected_category.name }}</h3>
+            {% endif %}
+        </div>
+    {% endif %}
+    
     {% if articles %}
         <div class="articles-count">
             {{ articles.count }} 件の記事が見つかりました
+            {% if query %}<span class="search-query">「{{ query }}」の検索結果</span>{% endif %}
         </div>
         <div class="article-list">
             {% for article in articles %}
                 <div class="article-item">
-                    <h3><a href="{% url 'article_detail' article.id %}">{{ article.title }}</a></h3>
+                    <h3><a href="{% url 'articles:article_detail' article.id %}">{{ article.title }}</a></h3>
                     <div class="article-meta">
-                        <span class="category">{{ article.category }}</span>
-                        <span class="date">{{ article.post_date }}</span>
+                        <span class="date">{{ article.post_date|date:"Y年n月j日" }}</span>
+                        <span class="category">
+                            {% if article.category %}
+                                {% if article.category.parent %}
+                                    <a href="{% url 'articles:article_list' %}?category={{ article.category.parent.id }}">{{ article.category.parent.name }}</a>
+                                    > 
+                                    <a href="{% url 'articles:article_list' %}?category={{ article.category.id }}">{{ article.category.name }}</a>
+                                {% else %}
+                                    <a href="{% url 'articles:article_list' %}?category={{ article.category.id }}">{{ article.category.name }}</a>
+                                {% endif %}
+                            {% endif %}
+                        </span>
+                        {% if article.tags %}
+                            <span class="tags">
+                                タグ: {{ article.tags }}
+                            </span>
+                        {% endif %}
                     </div>
-                    <div class="article-intro">
-                        {{ article.content_intro|truncatewords:50 }}
-                    </div>
-                    <a href="{% url 'article_detail' article.id %}" class="read-more">続きを読む</a>
+                    {% if article.content_intro %}
+                        <div class="article-intro">
+                            {{ article.content_intro|truncatewords:50 }}
+                        </div>
+                    {% endif %}
+                    {% if article.book_title %}
+                        <div class="book-info">
+                            <span class="book-icon">📚</span>
+                            {{ article.book_title }}
+                            {% if article.book_author %}（{{ article.book_author }}）{% endif %}
+                        </div>
+                    {% endif %}
                 </div>
             {% endfor %}
         </div>
@@ -46,25 +96,23 @@
         {% if articles.has_other_pages %}
             <div class="pagination">
                 {% if articles.has_previous %}
-                    <a href="?page={{ articles.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">&laquo; 前へ</a>
+                    <a href="?page={{ articles.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.has_book %}&has_book={{ request.GET.has_book }}{% endif %}">&laquo; 前へ</a>
                 {% endif %}
                 
                 {% for num in articles.paginator.page_range %}
                     {% if articles.number == num %}
                         <span class="current">{{ num }}</span>
                     {% else %}
-                        <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">{{ num }}</a>
+                        <a href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.has_book %}&has_book={{ request.GET.has_book }}{% endif %}">{{ num }}</a>
                     {% endif %}
                 {% endfor %}
                 
                 {% if articles.has_next %}
-                    <a href="?page={{ articles.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}">次へ &raquo;</a>
+                    <a href="?page={{ articles.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.has_book %}&has_book={{ request.GET.has_book }}{% endif %}">次へ &raquo;</a>
                 {% endif %}
             </div>
         {% endif %}
     {% else %}
-        <div class="no-articles">
-            <p>検索条件に一致する記事が見つかりませんでした。</p>
-        </div>
+        <p>該当する記事が見つかりませんでした。</p>
     {% endif %}
 {% endblock %}
